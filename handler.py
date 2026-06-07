@@ -50,14 +50,16 @@ pipeline_info = {}
 def download_file(url, output_dir, token=None):
     os.makedirs(output_dir, exist_ok=True)
     
-    headers = {}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
     if ('civitai.com' in url or 'civitai.red' in url) and token:
         separator = '&' if '?' in url else '?'
         url = f"{url}{separator}token={token}"
 
     print(f"Runtime Downloading from {url}...")
     try:
-        response = requests.get(url, stream=True, headers=headers, allow_redirects=True)
+        response = requests.get(url, stream=True, headers=headers, allow_redirects=True, timeout=60)
         response.raise_for_status()
 
         # Try to get filename from content-disposition
