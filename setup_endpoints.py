@@ -56,6 +56,8 @@ def query_runpod_rest(api_key, path, data=None, method='POST'):
     try:
         with urllib.request.urlopen(req) as response:
             res_body = response.read().decode('utf-8')
+            if not res_body.strip():
+                return {}
             return json.loads(res_body)
     except urllib.error.HTTPError as e:
         print(f"REST API HTTP Error: {e.code} - {e.read().decode('utf-8')}")
@@ -118,81 +120,24 @@ def main():
     # Get RunPod API Key
     runpod_key = os.environ.get("RUNPOD_API_KEY", existing_vars.get("RUNPOD_API_KEY", ""))
     if not runpod_key or runpod_key.startswith("your_"):
-        runpod_key = input("Enter your RunPod API Key: ").strip()
-    else:
-        reuse = input(f"Reuse existing RunPod API key ({runpod_key[:8]}...)? [Y/n]: ").strip().lower()
-        if reuse not in ('', 'y', 'yes'):
-            runpod_key = input("Enter your RunPod API Key: ").strip()
-            
-    if not runpod_key:
-        print("[ERROR] RunPod API Key is required.")
+        print("[ERROR] RUNPOD_API_KEY not found in environment or .env.local.")
         sys.exit(1)
+        
+    print(f"Using RunPod API key ({runpod_key[:8]}...)")
 
     # Get CivitAI Token
     civitai_token = existing_vars.get("CIVITAI_TOKEN", "")
     if not civitai_token:
         civitai_token = "9f6f97877f0c7955cc66907597403a33"
+    print(f"Using CivitAI Token ({civitai_token[:4]}...)")
 
-    # Query existing network volumes
-    print("\nChecking for existing RunPod Network Volumes...")
-    volumes = []
-    res_volumes = query_runpod_rest(runpod_key, "/networkvolumes", method='GET')
-    if isinstance(res_volumes, list):
-        volumes = res_volumes
-
+    # Proceed without network volume
     volume_id = None
-    if volumes:
-        print(f"Found {len(volumes)} existing Network Volume(s):")
-        for i, vol in enumerate(volumes):
-            print(f"  [{i+1}] ID: {vol.get('id')}, Name: {vol.get('name')}, Size: {vol.get('size')} GB, Region: {vol.get('dataCenterId')}")
-        
-        choice = input(f"\nSelect a volume to use (1-{len(volumes)}) or press Enter to create a new one: ").strip()
-        if choice.isdigit() and 1 <= int(choice) <= len(volumes):
-            volume_id = volumes[int(choice) - 1].get("id")
-            print(f"Selected existing volume: {volume_id}")
-
-    if not volume_id:
-        create_choice = input("\nNo volume selected. Would you like to create a new 50GB persistent network volume? (Recommended) [Y/n]: ").strip().lower()
-        if create_choice not in ('n', 'no'):
-            print("\nAvailable datacenter regions:")
-            print("  [1] US-TX-1 (Texas, USA - Default)")
-            print("  [2] US-CA-1 (California, USA)")
-            print("  [3] EU-RO-1 (Romania, Europe)")
-            region_choice = input("Select a region (1-3) [default: 1]: ").strip()
-            dc_id = "US-TX-1"
-            if region_choice == "2":
-                dc_id = "US-CA-1"
-            elif region_choice == "3":
-                dc_id = "EU-RO-1"
-                
-            print(f"Creating 50GB network volume in {dc_id}...")
-            payload = {
-                "name": "sneaky-imagen-volume",
-                "size": 50,
-                "dataCenterId": dc_id
-            }
-            create_res = query_runpod_rest(runpod_key, "/networkvolumes", data=payload, method='POST')
-            if create_res and "id" in create_res:
-                volume_id = create_res["id"]
-                print(f"Created volume successfully! ID: {volume_id}")
-            else:
-                print("\n[WARNING] Failed to create network volume.")
-                if create_res and "error" in create_res:
-                    print(f"RunPod Error: {create_res['error']}")
-                print("We will proceed WITHOUT a network volume. Estimated cold start: 5-15 mins.")
-                confirm = input("Continue anyway? [Y/n]: ").strip().lower()
-                if confirm in ('n', 'no'):
-                    sys.exit(1)
-        else:
-            print("Proceeding without volume attachment.")
+    print("Proceeding WITHOUT a network volume (using 40GB ephemeral volume per worker).")
 
     # Image registry options
-    print("\n--- Docker Image Setup ---")
-    print("We have configured GitHub Actions to build and push to GitHub Container Registry (ghcr.io).")
-    print("The default image tag is: ghcr.io/johnathanvr/sneaky-imagen:latest")
-    
-    image_override = input("\nEnter custom Docker image tag if different (press Enter to keep default): ").strip()
-    full_image = image_override if image_override else "ghcr.io/johnathanvr/sneaky-imagen:latest"
+    full_image = "ghcr.io/johnathanvr/sneaky-imagen:latest"
+    print(f"Using Docker image: {full_image}")
 
     # 0. Clean up existing endpoints
     print_header("CLEANING UP EXISTING ENDPOINTS")
@@ -239,7 +184,7 @@ def main():
             "input": {
                 "name": template_name,
                 "imageName": full_image,
-                "containerDiskInGb": 20,
+                "containerDiskInGb": 45,
                 "volumeInGb": 0,
                 "isServerless": True,
                 "dockerArgs": "",
