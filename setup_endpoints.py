@@ -136,7 +136,15 @@ def main():
     print("Proceeding WITHOUT a network volume (using 40GB ephemeral volume per worker).")
 
     # Image registry options
-    full_image = "ghcr.io/johnathanvr/sneaky-imagen:latest"
+    import subprocess
+    try:
+        commit_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        print(f"Detected current git commit SHA: {commit_sha}")
+    except Exception as e:
+        print(f"Failed to detect commit SHA, falling back to latest. Error: {e}")
+        commit_sha = "latest"
+        
+    full_image = f"ghcr.io/johnathanvr/sneaky-imagen:{commit_sha}"
     print(f"Using Docker image: {full_image}")
 
     # 0. Clean up existing endpoints
