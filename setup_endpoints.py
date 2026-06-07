@@ -194,21 +194,23 @@ def main():
     image_override = input("\nEnter custom Docker image tag if different (press Enter to keep default): ").strip()
     full_image = image_override if image_override else "ghcr.io/johnathanvr/sneaky-imagen:latest"
 
-    # Create Template
-    print_header("1. CREATING RUNPOD TEMPLATE")
-    
-    # Check if a template with this name already exists and delete it to prevent uniqueness errors
-    template_name = "Sneaky-Imagen-Runtime"
-    print("Checking for existing templates with the same name...")
-    existing_templates = query_runpod_rest(runpod_key, "/templates", method='GET')
-    if isinstance(existing_templates, list):
-        for t in existing_templates:
-            if t.get("name") == template_name:
-                t_id = t.get("id")
-                print(f"Cleaning up old template '{template_name}' (ID: {t_id})...")
-                query_runpod_rest(runpod_key, f"/templates/{t_id}", method='DELETE')
+    # 0. Clean up existing endpoints
+    print_header("CLEANING UP EXISTING ENDPOINTS")
+    existing_endpoints = query_runpod_rest(runpod_key, "/endpoints", method='GET')
+    if isinstance(existing_endpoints, list):
+        for ep in existing_endpoints:
+            if ep.get("name", "").startswith("sneaky-imagen-"):
+                ep_id = ep.get("id")
+                print(f"Cleaning up old endpoint '{ep.get('name')}' (ID: {ep_id})...")
+                query_runpod_rest(runpod_key, f"/endpoints/{ep_id}", method='DELETE')
 
-    print(f"Creating serverless template using image: {full_image}")
+    # Create Templates
+    print_header("1. CREATING RUNPOD TEMPLATES")
+    models = ["SDXL", "Flux", "SD15"]
+    template_ids = {}
+    
+    # Query existing templates
+    existing_templates = query_runpod_rest(runpod_key, "/templates", method='GET')
     
     mutation = """
     mutation saveTemplate($input: SaveTemplateInput!) {
@@ -219,32 +221,46 @@ def main():
     }
     """
     
-    variables = {
-        "input": {
-            "name": "Sneaky-Imagen-Runtime",
-            "imageName": full_image,
-            "containerDiskInGb": 20,
-            "volumeInGb": 0,
-            "isServerless": True,
-            "dockerArgs": "",
-            "ports": "",
-            "env": [
-                {"key": "CIVITAI_TOKEN", "value": civitai_token}
-            ]
-        }
-    }
-    
-    res_data = query_runpod_graphql(runpod_key, mutation, variables)
-    if not res_data or not res_data.get("saveTemplate"):
-        print("[ERROR] Failed to create template on RunPod. Verify your API Key.")
-        sys.exit(1)
+    for model in models:
+        template_name = f"Sneaky-Imagen-{model}-Runtime"
+        print(f"\n--> Setting up template '{template_name}'...")
         
-    template_id = res_data["saveTemplate"]["id"]
-    print(f"Created template successfully! ID: {template_id}")
+        # Delete old template if exists
+        if isinstance(existing_templates, list):
+            for t in existing_templates:
+                if t.get("name") == template_name:
+                    t_id = t.get("id")
+                    print(f"Cleaning up old template '{template_name}' (ID: {t_id})...")
+                    query_runpod_rest(runpod_key, f"/templates/{t_id}", method='DELETE')
+                    
+        # Create new template
+        print(f"Creating serverless template using image: {full_image} (MODEL_TYPE: {model})")
+        variables = {
+            "input": {
+                "name": template_name,
+                "imageName": full_image,
+                "containerDiskInGb": 20,
+                "volumeInGb": 0,
+                "isServerless": True,
+                "dockerArgs": "",
+                "ports": "",
+                "env": [
+                    {"key": "CIVITAI_TOKEN", "value": civitai_token},
+                    {"key": "MODEL_TYPE", "value": model}
+                ]
+            }
+        }
+        res_data = query_runpod_graphql(runpod_key, mutation, variables)
+        if not res_data or not res_data.get("saveTemplate"):
+            print(f"[ERROR] Failed to create template for {model}.")
+            sys.exit(1)
+            
+        template_id = res_data["saveTemplate"]["id"]
+        print(f"Created template successfully! ID: {template_id}")
+        template_ids[model] = template_id
 
     # Create Endpoints
     print_header("2. CREATING ENDPOINTS")
-    models = ["SDXL", "Flux", "SD15"]
     env_updates = {
         "RUNPOD_API_KEY": runpod_key,
         "CIVITAI_TOKEN": civitai_token
@@ -252,6 +268,7 @@ def main():
     
     for model in models:
         print(f"\n--> Deploying endpoint for {model}...")
+        template_id = template_ids[model]
         endpoint_payload = {
             "name": f"sneaky-imagen-{model.lower()}-endpoint",
             "templateId": template_id,
