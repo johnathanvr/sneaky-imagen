@@ -1,13 +1,26 @@
 import os
 import requests
 import re
-from pathlib import Path
+import sys
 
-# Configuration for Sneaky Imagen
-# You can customize these URLs before building the image
-CHECKPOINT_URL = "https://civitai.com/api/download/models/1759168?type=Model&format=SafeTensor&size=full&fp=fp16"
-LORA_URLS = ["https://civitai.com/api/download/models/135867?type=Model&format=SafeTensor"]
-VAE_URL = "https://civitai.com/api/download/models/333245?type=Model&format=SafeTensor"
+# Model URLs mapped by MODEL_TYPE
+MODELS = {
+    "SD15": {
+        "checkpoint": "https://civitai.com/api/download/models/1820935?fileId=1721430",
+        "loras": [],
+        "vae": None
+    },
+    "SDXL": {
+        "checkpoint": "https://civitai.red/api/download/models/2113674?fileId=2008314",
+        "loras": [],
+        "vae": None
+    },
+    "Flux": {
+        "checkpoint": "https://civitai.red/api/download/models/990314?fileId=896468",
+        "loras": [],
+        "vae": None
+    }
+}
 
 # Optional: Set a CivitAI token if downloading restricted models
 CIVITAI_TOKEN = os.environ.get("CIVITAI_TOKEN", "daa65fe2bceb540c0a1a9e7cf2ab1245") 
@@ -21,7 +34,7 @@ def download_file(url, output_dir, token=None):
     os.makedirs(output_dir, exist_ok=True)
     
     headers = {}
-    if 'civitai.com' in url and token:
+    if ('civitai.com' in url or 'civitai.red' in url) and token:
         separator = '&' if '?' in url else '?'
         url = f"{url}{separator}token={token}"
 
@@ -64,19 +77,29 @@ def download_file(url, output_dir, token=None):
         return None
 
 if __name__ == "__main__":
-    print("Starting build-time model download...")
+    model_type = os.environ.get("MODEL_TYPE", "SDXL")
+    print(f"Starting build-time model download for type: {model_type}...")
+    
+    if model_type not in MODELS:
+        print(f"Error: Unknown model type '{model_type}'. Available: {list(MODELS.keys())}")
+        sys.exit(1)
+        
+    config = MODELS[model_type]
     
     # Download Checkpoint
-    if CHECKPOINT_URL:
-        download_file(CHECKPOINT_URL, CHECKPOINT_DIR, CIVITAI_TOKEN)
+    checkpoint_url = config.get("checkpoint")
+    if checkpoint_url:
+        download_file(checkpoint_url, CHECKPOINT_DIR, CIVITAI_TOKEN)
         
     # Download LoRAs
-    for url in LORA_URLS:
+    for url in config.get("loras", []):
         if url:
             download_file(url, LORA_DIR, CIVITAI_TOKEN)
             
     # Download VAE
-    if VAE_URL:
-        download_file(VAE_URL, VAE_DIR, CIVITAI_TOKEN)
+    vae_url = config.get("vae")
+    if vae_url:
+        download_file(vae_url, VAE_DIR, CIVITAI_TOKEN)
         
     print("Build-time download complete.")
+

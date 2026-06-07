@@ -20,8 +20,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Download models during build
-RUN python3 builder.py
-
 # Set entrypoint
 CMD [ "python3", "-u", "handler.py" ]

@@ -1,0 +1,16 @@
+frontend/
+.git/
+.github/
+.runpod/
+venv/
+.venv/
+__pycache__/
+*.safetensors
+*.ckpt
+*.pt
+*.bin
+models/
+outputs/
+.DS_Store
+.env
+.env.local
