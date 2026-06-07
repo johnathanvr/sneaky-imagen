@@ -196,6 +196,18 @@ def main():
 
     # Create Template
     print_header("1. CREATING RUNPOD TEMPLATE")
+    
+    # Check if a template with this name already exists and delete it to prevent uniqueness errors
+    template_name = "Sneaky-Imagen-Runtime"
+    print("Checking for existing templates with the same name...")
+    existing_templates = query_runpod_rest(runpod_key, "/templates", method='GET')
+    if isinstance(existing_templates, list):
+        for t in existing_templates:
+            if t.get("name") == template_name:
+                t_id = t.get("id")
+                print(f"Cleaning up old template '{template_name}' (ID: {t_id})...")
+                query_runpod_rest(runpod_key, f"/templates/{t_id}", method='DELETE')
+
     print(f"Creating serverless template using image: {full_image}")
     
     mutation = """
@@ -213,6 +225,9 @@ def main():
             "imageName": full_image,
             "containerDiskInGb": 20,
             "volumeInGb": 0,
+            "isServerless": True,
+            "dockerArgs": "",
+            "ports": "",
             "env": [
                 {"key": "CIVITAI_TOKEN", "value": civitai_token}
             ]
@@ -261,7 +276,7 @@ def main():
         endpoint_id = endpoint_data["id"]
         print(f"Deployed endpoint '{endpoint_data['name']}' (ID: {endpoint_id})")
         
-        env_updates[f"RUNPOD_ENDPOINT_ID_{model}"] = endpoint_id
+        env_updates[f"RUNPOD_ENDPOINT_ID_{model.upper()}"] = endpoint_id
 
     # Save env local updates
     save_env_vars(env_updates)
