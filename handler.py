@@ -200,8 +200,7 @@ def load_models():
                 **pipe_kwargs
             )
             
-        if device != "cuda":
-            pipe = pipe.to(device)
+        pipe = pipe.to(device)
         
         # Disable safety checker to prevent false flags / black images
         if hasattr(pipe, "safety_checker") and pipe.safety_checker is not None:
@@ -212,7 +211,6 @@ def load_models():
             
         # Enable memory optimizations
         if device == "cuda":
-            pipe.enable_model_cpu_offload()
             pipe.enable_vae_slicing()
             
         # Load LoRAs
