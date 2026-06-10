@@ -190,6 +190,17 @@ def load_models():
                 **pipe_kwargs
             )
         elif model_type == "SD15":
+            if "vae" not in pipe_kwargs:
+                print("No custom VAE loaded. Loading stabilityai/sd-vae-ft-mse VAE to prevent meta-tensor errors...")
+                try:
+                    pipe_kwargs["vae"] = AutoencoderKL.from_pretrained(
+                        "stabilityai/sd-vae-ft-mse", 
+                        torch_dtype=dtype
+                    )
+                    print("Successfully loaded stabilityai/sd-vae-ft-mse VAE.")
+                except Exception as e:
+                    print(f"Error loading stabilityai/sd-vae-ft-mse VAE: {e}")
+            
             pipe = StableDiffusionPipeline.from_single_file(
                 checkpoint_path,
                 safety_checker=None,
@@ -197,6 +208,16 @@ def load_models():
                 **pipe_kwargs
             )
         else: # SDXL
+            if "vae" not in pipe_kwargs:
+                print("No custom VAE loaded. Loading madebyollin/sdxl-vae-fp16-fix VAE to prevent potential meta-tensor errors...")
+                try:
+                    pipe_kwargs["vae"] = AutoencoderKL.from_pretrained(
+                        "madebyollin/sdxl-vae-fp16-fix",
+                        torch_dtype=dtype
+                    )
+                    print("Successfully loaded madebyollin/sdxl-vae-fp16-fix VAE.")
+                except Exception as e:
+                    print(f"Error loading madebyollin/sdxl-vae-fp16-fix VAE: {e}")
             pipe = StableDiffusionXLPipeline.from_single_file(
                 checkpoint_path,
                 **pipe_kwargs
