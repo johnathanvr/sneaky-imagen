@@ -204,14 +204,16 @@ def load_models():
         try:
             pipe = pipe.to(device)
         except Exception as e:
-            print(f"Failed to move pipeline to {device}: {e}")
-            print("Inspecting pipeline components:")
+            debug_info = [f"Failed to move pipeline to {device}: {e}", "Inspecting pipeline components:"]
             for name, component in pipe.components.items():
                 if isinstance(component, torch.nn.Module):
                     meta_params = [p_name for p_name, p in component.named_parameters() if p.device.type == "meta"]
                     meta_buffers = [b_name for b_name, b in component.named_buffers() if b.device.type == "meta"]
                     if meta_params or meta_buffers:
-                        print(f"  Component '{name}' ({component.__class__.__name__}) has meta parameters: {meta_params} or buffers: {meta_buffers}")
+                        debug_info.append(f"  Component '{name}' ({component.__class__.__name__}) has meta parameters: {meta_params} or buffers: {meta_buffers}")
+            debug_str = "\n".join(debug_info)
+            print(debug_str)
+            load_error_traceback = f"{debug_str}\n\nTraceback:\n{traceback.format_exc()}"
             raise e
         
         # Disable safety checker to prevent false flags / black images
@@ -251,7 +253,8 @@ def load_models():
         print("Models loaded successfully!")
         return True
     except Exception as e:
-        load_error_traceback = traceback.format_exc()
+        if not load_error_traceback:
+            load_error_traceback = traceback.format_exc()
         print(f"Error in load_models: {e}")
         return False
 
