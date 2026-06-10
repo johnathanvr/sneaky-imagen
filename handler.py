@@ -201,8 +201,18 @@ def load_models():
                 checkpoint_path,
                 **pipe_kwargs
             )
-            
-        pipe = pipe.to(device)
+        try:
+            pipe = pipe.to(device)
+        except Exception as e:
+            print(f"Failed to move pipeline to {device}: {e}")
+            print("Inspecting pipeline components:")
+            for name, component in pipe.components.items():
+                if isinstance(component, torch.nn.Module):
+                    meta_params = [p_name for p_name, p in component.named_parameters() if p.device.type == "meta"]
+                    meta_buffers = [b_name for b_name, b in component.named_buffers() if b.device.type == "meta"]
+                    if meta_params or meta_buffers:
+                        print(f"  Component '{name}' ({component.__class__.__name__}) has meta parameters: {meta_params} or buffers: {meta_buffers}")
+            raise e
         
         # Disable safety checker to prevent false flags / black images
         if hasattr(pipe, "safety_checker") and pipe.safety_checker is not None:
