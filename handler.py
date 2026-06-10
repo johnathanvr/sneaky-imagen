@@ -192,6 +192,8 @@ def load_models():
         elif model_type == "SD15":
             pipe = StableDiffusionPipeline.from_single_file(
                 checkpoint_path,
+                safety_checker=None,
+                feature_extractor=None,
                 **pipe_kwargs
             )
         else: # SDXL
