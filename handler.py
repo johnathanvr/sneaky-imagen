@@ -178,23 +178,26 @@ def load_models():
     print(f"Loading {model_type} pipeline from {checkpoint_path}...")
     
     try:
+        pipe_kwargs = {
+            "torch_dtype": dtype
+        }
+        if vae is not None:
+            pipe_kwargs["vae"] = vae
+
         if model_type == "Flux":
             pipe = FluxPipeline.from_single_file(
                 checkpoint_path,
-                vae=vae,
-                torch_dtype=dtype
+                **pipe_kwargs
             )
         elif model_type == "SD15":
             pipe = StableDiffusionPipeline.from_single_file(
                 checkpoint_path,
-                vae=vae,
-                torch_dtype=dtype
+                **pipe_kwargs
             )
         else: # SDXL
             pipe = StableDiffusionXLPipeline.from_single_file(
                 checkpoint_path,
-                vae=vae,
-                torch_dtype=dtype
+                **pipe_kwargs
             )
             
         pipe = pipe.to(device)
