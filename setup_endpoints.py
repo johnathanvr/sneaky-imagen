@@ -227,6 +227,17 @@ def main():
             "templateId": template_id,
             "computeType": "GPU",
             "gpuCount": 1,
+            "gpuTypeIds": [
+                "NVIDIA RTX A4000",
+                "NVIDIA RTX A4500",
+                "NVIDIA RTX 4000 Ada Generation",
+                "NVIDIA RTX 2000 Ada Generation",
+                "NVIDIA RTX A5000",
+                "NVIDIA L4",
+                "NVIDIA GeForce RTX 3090",
+                "NVIDIA GeForce RTX 4090",
+                "NVIDIA A40"
+            ],
             "workersMin": 0,
             "workersMax": 3,
             "scalerType": "QUEUE_DELAY",
