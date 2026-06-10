@@ -245,17 +245,18 @@ def load_models():
         print(f"Error in load_models: {e}")
         return False
 
-# Initialize models at startup
-load_models()
-
 def handler(job):
+    global load_error_traceback
     job_input = job["input"]
     
     if not pipeline_info.get("loaded"):
-        return {
-            "error": "Pipeline not loaded",
-            "traceback": load_error_traceback or "No traceback captured."
-        }
+        print("Models not pre-loaded. Initializing now...")
+        success = load_models()
+        if not success:
+            return {
+                "error": "Pipeline failed to load during handler execution.",
+                "traceback": load_error_traceback or "No traceback captured."
+            }
 
     # Extract parameters with defaults
     prompt = job_input.get("prompt", "a beautiful landscape, highly detailed, 8k")
