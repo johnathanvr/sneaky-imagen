@@ -200,7 +200,8 @@ def load_models():
                 **pipe_kwargs
             )
             
-        pipe = pipe.to(device)
+        if device != "cuda":
+            pipe = pipe.to(device)
         
         # Disable safety checker to prevent false flags / black images
         if hasattr(pipe, "safety_checker") and pipe.safety_checker is not None:
