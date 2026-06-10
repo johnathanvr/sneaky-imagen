@@ -5,6 +5,7 @@ import base64
 import io
 import requests
 import re
+import traceback
 from diffusers import (
     StableDiffusionPipeline,
     StableDiffusionXLPipeline,
@@ -46,6 +47,7 @@ MODELS_CONFIG = {
 # Global pipeline variable
 pipe = None
 pipeline_info = {}
+load_error_traceback = None
 
 def download_file(url, output_dir, token=None):
     os.makedirs(output_dir, exist_ok=True)
@@ -96,7 +98,7 @@ def download_file(url, output_dir, token=None):
         return None
 
 def load_models():
-    global pipe, pipeline_info
+    global pipe, pipeline_info, load_error_traceback
     
     model_type = os.environ.get("MODEL_TYPE", "SDXL") 
     print(f"Starting runtime model initialization for type: {model_type}...")
@@ -235,6 +237,7 @@ def load_models():
         print("Models loaded successfully!")
         return True
     except Exception as e:
+        load_error_traceback = traceback.format_exc()
         print(f"Error in load_models: {e}")
         return False
 
@@ -245,7 +248,10 @@ def handler(job):
     job_input = job["input"]
     
     if not pipeline_info.get("loaded"):
-        return {"error": "Pipeline not loaded"}
+        return {
+            "error": "Pipeline not loaded",
+            "traceback": load_error_traceback or "No traceback captured."
+        }
 
     # Extract parameters with defaults
     prompt = job_input.get("prompt", "a beautiful landscape, highly detailed, 8k")
